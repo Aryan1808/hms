@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Patients — Admin — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Patients</h5>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover table-striped align-middle mb-0">
+          <thead class="table-light small">
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Username</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in patients %}
+              <tr>
+                <td class="small">{{ p['id'] }}</td>
+                <td class="fw-medium">{{ p['name'] }}</td>
+                <td class="small text-muted">{{ p['username'] }}</td>
+                <td class="text-end small">
+                  <button class="btn btn-sm btn-outline-primary view-history-btn" data-pid="{{ p['id'] }}">View</button>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="text-center small text-muted">No patients found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Patient History -->
+<div class="modal fade" id="adminPatientHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Patient Information</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="admin-ph-loading" class="text-center small text-muted">Loading...</div>
+        
+        <div id="admin-ph-content" style="display:none">
+          <h6 id="admin-ph-patient-title" class="mb-3"></h6>
+          
+          <!-- Upcoming Appointments Section -->
+          <div class="mb-4">
+            <h6 class="small text-muted mb-2">Upcoming Appointments</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle">
+                <thead class="table-light small"><tr><th>Date</th><th>Time</th><th>Doctor</th><th>Status</th></tr></thead>
+                <tbody id="admin-ph-upcoming"></tbody>
+              </table>
+            </div>
+            <div id="admin-ph-upcoming-empty" class="text-center small text-muted" style="display:none">No upcoming appointments.</div>
+          </div>
+
+          <!-- History Records Section -->
+          <div>
+            <h6 class="small text-muted mb-2">Past History</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle">
+                <thead class="table-light small"><tr><th>Visit Info</th><th>Doctor</th><th>Prescription</th><th>Date</th></tr></thead>
+                <tbody id="admin-ph-tbody"></tbody>
+              </table>
+            </div>
+            <div id="admin-ph-empty" class="text-center small text-muted" style="display:none">No history records.</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const phModalEl = document.getElementById('adminPatientHistoryModal');
+  const phModal = new bootstrap.Modal(phModalEl);
+  const loading = document.getElementById('admin-ph-loading');
+  const empty = document.getElementById('admin-ph-empty');
+  const upcomingEmpty = document.getElementById('admin-ph-upcoming-empty');
+  const content = document.getElementById('admin-ph-content');
+  const tbody = document.getElementById('admin-ph-tbody');
+  const upcomingBody = document.getElementById('admin-ph-upcoming');
+  const title = document.getElementById('admin-ph-patient-title');
+
+  document.querySelectorAll('.view-history-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const pid = btn.dataset.pid;
+      loading.style.display = 'block'; 
+      empty.style.display='none'; 
+      upcomingEmpty.style.display='none';
+      content.style.display='none'; 
+      tbody.innerHTML='';
+      upcomingBody.innerHTML='';
+      
+      Promise.all([
+        fetch('/api/patient-history/' + pid).then(r=>{ if(!r.ok) throw r; return r.json(); }),
+        fetch('/api/patient-appointments/' + pid).then(r=>{ if(!r.ok) throw r; return r.json(); })
+      ]).then(([history, appointments])=>{
+        loading.style.display='none';
+        title.textContent = `Patient #${pid} Information`;
+        
+        // Display upcoming appointments
+        if(appointments && appointments.length > 0){
+          appointments.forEach(a=>{
+            const tr = document.createElement('tr');
+            let status = a.status || 'Booked';
+            let badgeClass = 'bg-info';
+            if(status === 'Completed') badgeClass = 'bg-success';
+            else if(status === 'Cancelled') badgeClass = 'bg-secondary';
+            tr.innerHTML = `<td class="small">${a.date||'-'}</td><td class="small">${a.time||'-'}</td><td class="small">Dr. ${a.doctor_name||'Unknown'}</td><td class="small"><span class="badge ${badgeClass}">${status}</span></td>`;
+            upcomingBody.appendChild(tr);
+          });
+        } else {
+          upcomingEmpty.style.display = 'block';
+        }
+        
+        // Display history records
+        if(history && history.length > 0){
+          history.forEach(r=>{
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="small">${(r.visit_info||'').replace(/\n/g,'<br>')}</td><td class="small">${r.doctor_name||'Unknown'}</td><td class="small">${r.prescription||''}</td><td class="small">${r.date||''}</td>`;
+            tbody.appendChild(tr);
+          });
+        } else {
+          empty.style.display = 'block';
+        }
+        
+        content.style.display='block';
+        phModal.show();
+      }).catch(err=>{ 
+        loading.style.display='none'; 
+        empty.style.display='block'; 
+        phModal.show(); 
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

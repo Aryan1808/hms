@@ -2,33 +2,70 @@
 {% block title %}Book Appointment — Hospital Management{% endblock %}
 
 {% block content %}
-<div class="row">
-  <div class="col-md-7 col-lg-6 mx-auto">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="card-title mb-3">Book Appointment with Dr. {{ doc['name'] }}</h5>
-        <p class="small text-muted mb-3">Specialization: {{ doc['specialization'] or 'General' }}</p>
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-8 mx-auto">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-2">Book Appointment with Dr. {{ doc['name'] }}</h5>
+          <p class="small text-muted mb-4">Specialization: {{ doc['specialization'] or 'General' }}</p>
 
-        <form action="{{ url_for('book', doctor_id=doc['id']) }}" method="post" class="needs-validation" novalidate>
-          <div class="mb-3">
-            <label class="form-label small">Date</label>
-            <input type="date" name="date" class="form-control" required>
-            <div class="invalid-feedback">Select a date.</div>
-          </div>
+          <h6 class="mb-3">Doctor's Availability</h6>
+          
+          <form id="bookingForm" action="{{ url_for('book', doctor_id=doctor_id) }}" method="post">
+            <div class="table-responsive mb-4">
+              <table class="table table-sm table-bordered">
+                <tbody>
+                  {% for day in availability %}
+                  <tr>
+                    <td class="fw-bold" style="width: 15%;">{{ day.date }}</td>
+                    {% for slot in day.slots %}
+                    <td style="width: 42.5%; text-align: center;">
+                      {% if slot.available %}
+                      <label class="d-block mb-0">
+                        <input type="radio" name="appointment" value="{{ day.date }}|{{ slot.time }}" class="appointment-radio" required>
+                        <span class="badge bg-success">{{ slot.time }} - {{ slot.end_time }}</span>
+                      </label>
+                      {% else %}
+                      <span class="badge bg-danger">{{ slot.time }} - {{ slot.end_time }}</span>
+                      {% endif %}
+                    </td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label small">Time</label>
-            <input type="time" name="time" class="form-control" required>
-            <div class="invalid-feedback">Select a time.</div>
-          </div>
+            <input type="hidden" name="date" id="selectedDate">
+            <input type="hidden" name="time" id="selectedTime">
 
-          <div class="d-flex justify-content-between">
-            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('patient_dashboard') }}">Back</a>
-            <button type="submit" class="btn btn-primary btn-sm">Book Appointment</button>
-          </div>
-        </form>
+            <div class="d-flex justify-content-between">
+              <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('patient_dashboard') }}">Back</a>
+              <button type="submit" class="btn btn-primary btn-sm" id="bookBtn" disabled>Book Appointment</button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+document.querySelectorAll('.appointment-radio').forEach(radio => {
+  radio.addEventListener('change', function() {
+    const [date, time] = this.value.split('|');
+    document.getElementById('selectedDate').value = date;
+    document.getElementById('selectedTime').value = time;
+    document.getElementById('bookBtn').disabled = false;
+  });
+});
+
+document.getElementById('bookingForm').addEventListener('submit', function(e) {
+  if (!document.querySelector('.appointment-radio:checked')) {
+    e.preventDefault();
+    alert('Please select a time slot');
+  }
+});
+</script>
 {% endblock %}

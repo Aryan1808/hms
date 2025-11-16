@@ -33,6 +33,7 @@
                 <td class="small">{{ d['specialization'] or 'General' }}</td>
                 <td class="small">{{ d['experience'] or '' }}</td>
                 <td class="text-end small">
+                  <a href="{{ url_for('admin_doctor_appointments', doctor_id=d['id']) }}" class="btn btn-sm btn-outline-info">View</a>
                   <button type="button" class="btn btn-sm btn-outline-secondary btn-edit" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
                   <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal">Delete</button>
                   <button type="button" class="btn btn-sm btn-outline-dark btn-blacklist">Blacklist</button>

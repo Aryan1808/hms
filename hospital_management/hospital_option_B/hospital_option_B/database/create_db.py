@@ -42,6 +42,23 @@ def init_db():
         username TEXT,
         specialization TEXT
     )''')
+    # patient history
+    cur.execute('''CREATE TABLE IF NOT EXISTS patient_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        appointment_id INTEGER,
+        patient_id INTEGER,
+        doctor_id INTEGER,
+        visit_info TEXT,
+        prescription TEXT,
+        date TEXT
+    )''')
+    # doctor-patient relationship (many-to-many)
+    cur.execute('''CREATE TABLE IF NOT EXISTS doctor_patient (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        doctor_id INTEGER NOT NULL,
+        patient_id INTEGER NOT NULL,
+        UNIQUE(doctor_id, patient_id)
+    )''')
     # create admin
     cur.execute("SELECT * FROM users WHERE username='admin'")
     if not cur.fetchone():
@@ -49,7 +66,7 @@ def init_db():
     # sample doctor
     cur.execute("SELECT * FROM users WHERE username='dr1'")
     if not cur.fetchone():
-        cur.execute("INSERT INTO users (name, username, password, role, specialization, experience) VALUES (?,?,?,?,?,?)", ('Dr. Alice','dr1','dr1pass','doctor','Cardiology','5 years'))
+        cur.execute("INSERT INTO users (name, username, password, role, specialization, experience) VALUES (?,?,?,?,?,?)", ('Dr. Alice','dr1','dr1pass','doctor','Cardiology','5'))
     conn.commit()
     conn.close()
     print('DB initialized at', DB)

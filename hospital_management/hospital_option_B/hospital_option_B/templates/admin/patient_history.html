@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Patient History — Admin — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Patient History</h5>
+      <div>
+        <button class="btn btn-primary btn-sm" id="btn-add-history">Add Record</button>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead class="table-light small">
+              <tr>
+                <th>Visit #</th>
+                <th>Visit Info</th>
+                <th>Doctor Name</th>
+                <th>Doctor Dept</th>
+                <th>Prescription</th>
+                <th>Date</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              {% for r in records %}
+                <tr data-id="{{ r['id'] }}" data-appointment_id="{{ r['appointment_id'] }}" data-patient_id="{{ r['patient_id'] }}" data-doctor_id="{{ r['doctor_id'] }}" data-visit_info="{{ r['visit_info']|e }}" data-prescription="{{ r['prescription']|e }}" data-date="{{ r['date'] }}">
+                  <td>{{ r['appointment_id'] or '-' }}</td>
+                  <td class="small">{{ r['visit_info'] }}</td>
+                  <td class="small">{{ r['doctor_name'] or 'Unknown' }}</td>
+                  <td class="small">{{ r['doctor_dept'] or '' }}</td>
+                  <td class="small">{{ r['prescription'] or '' }}</td>
+                  <td class="small">{{ r['date'] or '' }}</td>
+                  <td class="text-end small">
+                    <button class="btn btn-sm btn-outline-secondary btn-edit" data-id="{{ r['id'] }}">Edit</button>
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="7" class="text-center small text-muted">No history records.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Add / Edit History</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="history-form">
+          <input type="hidden" id="hist-id">
+          <div class="mb-2">
+            <label class="form-label small">Appointment ID (optional)</label>
+            <input type="text" id="hist-appointment" class="form-control">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Patient ID</label>
+            <input type="text" id="hist-patient" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Doctor ID</label>
+            <input type="text" id="hist-doctor" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Visit Info</label>
+            <textarea id="hist-visit" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Prescription</label>
+            <textarea id="hist-presc" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Date</label>
+            <input type="date" id="hist-date" class="form-control">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" id="hist-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const tbody = document.getElementById('history-tbody');
+  const modalEl = document.getElementById('historyModal');
+  const modal = new bootstrap.Modal(modalEl);
+  function showMessage(text, type='info'){
+    const msg = document.createElement('div'); msg.className = `alert alert-${ type==='info' ? 'secondary' : type } small alert-dismissible`; msg.innerHTML = text;
+    document.body.prepend(msg);
+    setTimeout(()=>msg.remove(),3000);
+  }
+
+  document.getElementById('btn-add-history').addEventListener('click', ()=>{
+    document.getElementById('hist-id').value='';
+    document.getElementById('hist-appointment').value='';
+    document.getElementById('hist-patient').value='';
+    document.getElementById('hist-doctor').value='';
+    document.getElementById('hist-visit').value='';
+    document.getElementById('hist-presc').value='';
+    document.getElementById('hist-date').value='';
+    modal.show();
+  });
+
+  tbody.addEventListener('click', function(e){
+    const btn = e.target.closest('.btn-edit');
+    if(!btn) return;
+    const tr = btn.closest('tr');
+    document.getElementById('hist-id').value = tr.dataset.id || '';
+    document.getElementById('hist-appointment').value = tr.dataset.appointment_id || '';
+    document.getElementById('hist-patient').value = tr.dataset.patient_id || '';
+    document.getElementById('hist-doctor').value = tr.dataset.doctor_id || '';
+    document.getElementById('hist-visit').value = tr.dataset.visit_info || '';
+    document.getElementById('hist-presc').value = tr.dataset.prescription || '';
+    document.getElementById('hist-date').value = tr.dataset.date || '';
+    modal.show();
+  });
+
+  document.getElementById('hist-save').addEventListener('click', function(){
+    const id = document.getElementById('hist-id').value || null;
+    const payload = {
+      id: id,
+      appointment_id: document.getElementById('hist-appointment').value || null,
+      patient_id: document.getElementById('hist-patient').value,
+      doctor_id: document.getElementById('hist-doctor').value,
+      visit_info: document.getElementById('hist-visit').value,
+      prescription: document.getElementById('hist-presc').value,
+      date: document.getElementById('hist-date').value || null
+    };
+    if(!payload.patient_id || !payload.doctor_id){ showMessage('Patient and Doctor IDs required','danger'); return; }
+    fetch('{{ url_for("api_patient_history_add_edit") }}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      .then(r=>{
+        if(!r.ok) throw r; return r.json();
+      }).then(j=>{
+        if(j.success){ showMessage('Saved'); location.reload(); } else showMessage(j.message || 'Failed','danger');
+      }).catch(()=>{ showMessage('Network or permission error','danger'); });
+  });
+})();
+</script>
+{% endblock %}

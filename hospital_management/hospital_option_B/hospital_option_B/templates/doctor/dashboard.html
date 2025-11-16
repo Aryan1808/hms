@@ -3,11 +3,16 @@
 
 {% block content %}
 <div class="row">
-  <div class="col-12">
+  <div class="col-lg-8">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="mb-0">My Appointments</h5>
-      <small class="text-muted">Doctor: {{ g.user.username }}</small>
+      <div>
+        <a class="btn btn-sm btn-outline-secondary me-2" href="{{ url_for('doctor_schedule') }}">My Schedule</a>
+        <button class="btn btn-sm btn-outline-primary" id="btn-new-patient">Add Patient</button>
+      </div>
     </div>
+
+    <div id="doctor-messages"></div>
 
     <div class="card shadow-sm">
       <div class="table-responsive">
@@ -23,10 +28,10 @@
           </thead>
           <tbody>
             {% for a in appts %}
-              <tr>
+              <tr data-appt-id="{{ a['id'] }}" data-patient-id="{{ a['patient_id'] }}" data-history-id="{{ a['history_id'] or '' }}" data-patient-name="{{ a['patient_name'] or '' }}">
                 <td class="small">{{ a['date'] }}</td>
                 <td class="small">{{ a['time'] }}</td>
-                <td class="fw-medium small">Patient #{{ a['patient_id'] }}</td>
+                <td class="fw-medium small">{{ a['patient_name'] or ('Patient #' ~ (a['patient_id'] or '-')) }}</td>
                 <td class="small">
                   {% if a['status'] == 'Booked' %}
                     <span class="badge bg-info">Booked</span>
@@ -46,7 +51,11 @@
                       <button type="submit" class="btn btn-sm btn-outline-success">Mark Complete</button>
                     </form>
                   {% else %}
-                    <span class="text-muted small">—</span>
+                    {% if a['history_id'] %}
+                      <button class="btn btn-sm btn-outline-primary btn-edit-history" data-appt-id="{{ a['id'] }}" data-history-id="{{ a['history_id'] }}" data-patient-id="{{ a['patient_id'] }}">Edit History</button>
+                    {% else %}
+                      <button class="btn btn-sm btn-outline-secondary btn-add-history" data-appt-id="{{ a['id'] }}" data-patient-id="{{ a['patient_id'] }}">Add History</button>
+                    {% endif %}
                   {% endif %}
                 </td>
               </tr>
@@ -58,5 +67,320 @@
       </div>
     </div>
   </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-3">
+      <div class="card-body small">
+        <h6 class="mb-2">Recent Patients</h6>
+        <ul class="list-unstyled small" id="recent-patients">
+          {% for p in patients %}
+            <li class="d-flex justify-content-between align-items-center" data-pid="{{ p['id'] }}"> 
+              <div>#{{ p['id'] }} — {{ p['name'] }} <span class="text-muted">({{ p['username'] }})</span></div>
+              <div><button class="btn btn-sm btn-link view-history" data-pid="{{ p['id'] }}">View</button></div>
+            </li>
+          {% else %}
+            <li class="text-muted">No patients yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- Modal: Add History (reusable) -->
+<div class="modal fade" id="doctorHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Add Patient History</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="doctor-history-form">
+          <input type="hidden" id="dh-record-id">
+          <input type="hidden" id="dh-appointment-id">
+          <input type="hidden" id="dh-patient-id">
+          <input type="hidden" id="dh-doctor-id" value="{{ g.user.id }}">
+          <div class="mb-2">
+            <label class="form-label small">Visit Info</label>
+            <textarea id="dh-visit" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Prescription</label>
+            <textarea id="dh-presc" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Date</label>
+            <input type="date" id="dh-date" class="form-control">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" id="dh-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Patient -->
+<div class="modal fade" id="addPatientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Add Patient</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-patient-form">
+          <div class="mb-2">
+            <label class="form-label small">Full name</label>
+            <input type="text" id="new-patient-name" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Username</label>
+            <input type="text" id="new-patient-username" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Password</label>
+            <input type="password" id="new-patient-password" class="form-control" required>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" id="save-new-patient">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: View Patient History -->
+<div class="modal fade" id="patientHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Patient History</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="ph-loading" class="text-center small text-muted">Loading...</div>
+        <div id="ph-empty" class="text-center small text-muted" style="display:none">No history records.</div>
+        <div id="ph-content" style="display:none">
+          <h6 id="ph-patient-title" class="mb-2"></h6>
+          <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle">
+                <thead class="table-light small"><tr><th>Visit #</th><th>Visit Info</th><th>Doctor</th><th>Prescription</th><th>Date</th><th>Actions</th></tr></thead>
+                <tbody id="ph-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const dhModalEl = document.getElementById('doctorHistoryModal');
+  const dhModal = new bootstrap.Modal(dhModalEl);
+  const addPatientModalEl = document.getElementById('addPatientModal');
+  const addPatientModal = new bootstrap.Modal(addPatientModalEl);
+  const phModalEl = document.getElementById('patientHistoryModal');
+  const phModal = new bootstrap.Modal(phModalEl);
+  const messages = document.getElementById('doctor-messages');
+
+  function flash(text, type='info'){
+    messages.innerHTML = `<div class="alert alert-${ type==='info' ? 'secondary' : type } small alert-dismissible fade show" role="alert">${text}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+  }
+
+  // Add history from appointment
+  document.querySelectorAll('.btn-add-history').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const appt = btn.dataset.apptId;
+      const pid = btn.dataset.patientId;
+      // clear any existing record id (new entry)
+      document.getElementById('dh-record-id').value = '';
+      document.getElementById('dh-appointment-id').value = appt;
+      document.getElementById('dh-patient-id').value = pid;
+      document.getElementById('dh-visit').value = '';
+      document.getElementById('dh-presc').value = '';
+      document.getElementById('dh-date').value = new Date().toISOString().slice(0,10);
+      dhModal.show();
+    });
+  });
+
+  // Edit existing history
+  document.querySelectorAll('.btn-edit-history').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const appt = btn.dataset.apptId;
+      const pid = btn.dataset.patientId;
+      document.getElementById('dh-appointment-id').value = appt;
+      document.getElementById('dh-patient-id').value = pid;
+      // fetch existing history for this appointment
+      fetch('/api/history/' + appt).then(r=>{ if(!r.ok) throw r; return r.json(); }).then(rec=>{
+        document.getElementById('dh-record-id').value = rec.id || '';
+        document.getElementById('dh-visit').value = rec.visit_info || '';
+        document.getElementById('dh-presc').value = rec.prescription || '';
+        // date might be stored as dd/mm/yyyy or yyyy-mm-dd; try to normalize for input[type=date]
+        if(rec.date){
+          try{
+            // if dd/mm/yyyy convert to yyyy-mm-dd
+            if(rec.date.indexOf('/') !== -1){
+              const parts = rec.date.split('/');
+              const d = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+              document.getElementById('dh-date').value = d;
+            } else {
+              document.getElementById('dh-date').value = rec.date;
+            }
+          } catch(e){ document.getElementById('dh-date').value = '' }
+        } else { document.getElementById('dh-date').value = '' }
+        dhModal.show();
+      }).catch(()=>{
+        // if fetch fails, open empty modal to allow creating
+        document.getElementById('dh-record-id').value = '';
+        dhModal.show();
+      });
+    });
+  });
+
+  document.getElementById('dh-save').addEventListener('click', ()=>{
+    const payload = {
+      id: document.getElementById('dh-record-id').value || null,
+      appointment_id: document.getElementById('dh-appointment-id').value || null,
+      patient_id: document.getElementById('dh-patient-id').value,
+      doctor_id: document.getElementById('dh-doctor-id').value,
+      visit_info: document.getElementById('dh-visit').value,
+      prescription: document.getElementById('dh-presc').value,
+      date: document.getElementById('dh-date').value || null
+    };
+    if(!payload.patient_id){ flash('Patient ID required','danger'); return; }
+    fetch('{{ url_for("api_patient_history_add_edit") }}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      .then(r=>{ if(!r.ok) return r.json().then(j=>{ throw new Error(j.message || 'Error'); }); return r.json(); })
+      .then(j=>{
+        if(j.success){ 
+          flash('History saved'); 
+          dhModal.hide();
+          // Update the appointments table row to reflect that history now exists
+          try{
+            const apptId = payload.appointment_id;
+            const recId = j.id;
+            const row = document.querySelector(`tr[data-appt-id="${apptId}"]`);
+            if(row){
+              row.dataset.historyId = recId;
+              // Replace Add History button with Edit History button if necessary
+              const addBtn = row.querySelector('.btn-add-history');
+              if(addBtn){
+                const pid = row.dataset.patientId || row.querySelector('[data-patient-id]')?.dataset.patientId || '';
+                const newBtn = document.createElement('button');
+                newBtn.className = 'btn btn-sm btn-outline-primary btn-edit-history';
+                newBtn.dataset.apptId = apptId;
+                newBtn.dataset.historyId = recId;
+                newBtn.dataset.patientId = pid;
+                newBtn.textContent = 'Edit History';
+                addBtn.replaceWith(newBtn);
+                // attach click handler to the new edit button
+                newBtn.addEventListener('click', function(){
+                  const ap = this.dataset.apptId;
+                  fetch('/api/history/' + ap).then(r=>{ if(!r.ok) throw r; return r.json(); }).then(rec=>{
+                    document.getElementById('dh-record-id').value = rec.id || '';
+                    document.getElementById('dh-appointment-id').value = rec.appointment_id || ap;
+                    document.getElementById('dh-patient-id').value = rec.patient_id || this.dataset.patientId || '';
+                    document.getElementById('dh-visit').value = rec.visit_info || '';
+                    document.getElementById('dh-presc').value = rec.prescription || '';
+                    if(rec.date){
+                      if(rec.date.indexOf('/') !== -1){ const parts = rec.date.split('/'); document.getElementById('dh-date').value = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0'); }
+                      else document.getElementById('dh-date').value = rec.date;
+                    } else document.getElementById('dh-date').value = '';
+                    dhModal.show();
+                  }).catch(()=>{ document.getElementById('dh-record-id').value=''; dhModal.show(); });
+                });
+              } else {
+                // if edit button existed, update its history id
+                const editBtn = row.querySelector('.btn-edit-history');
+                if(editBtn) editBtn.dataset.historyId = recId;
+              }
+            }
+          }catch(e){ /* non-fatal UI update error */ }
+        } else flash(j.message || 'Failed','danger');
+      }).catch(e=>flash(e.message || 'Network or permission error','danger'));
+  });
+
+  // Add patient modal handling
+  document.getElementById('btn-new-patient').addEventListener('click', ()=>{ addPatientModal.show(); });
+  document.getElementById('save-new-patient').addEventListener('click', ()=>{
+    const payload = { name: document.getElementById('new-patient-name').value.trim(), username: document.getElementById('new-patient-username').value.trim(), password: document.getElementById('new-patient-password').value };
+    if(!payload.name || !payload.username || !payload.password){ flash('All fields required','danger'); return; }
+    fetch('{{ url_for("doctor_add_patient") }}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      .then(r=>{ if(!r.ok) return r.json().then(j=>{ throw new Error(j.message || 'Error'); }); return r.json(); }).then(j=>{ if(j.success){ // update sidebar without reload
+          const ul = document.getElementById('recent-patients');
+          const li = document.createElement('li'); li.className = 'd-flex justify-content-between align-items-center'; li.dataset.pid = j.id; li.innerHTML = ` <div>#${j.id} — ${payload.name} <span class="text-muted">(${payload.username})</span></div><div><button class="btn btn-sm btn-link view-history" data-pid="${j.id}">View</button></div>`;
+          if(ul.querySelector('.text-muted')) ul.innerHTML='';
+          ul.prepend(li);
+          flash('Patient created: ID ' + j.id);
+          addPatientModal.hide();
+        } })
+      .catch(e=>flash(e.message || 'Failed','danger'));
+  });
+
+  // View patient history from sidebar
+  const historyUrlTemplate = '/api/patient-history/';
+  document.getElementById('recent-patients').addEventListener('click', function(e){
+    const btn = e.target.closest('.view-history');
+    if(!btn) return;
+    const pid = btn.dataset.pid;
+    const url = historyUrlTemplate + pid;
+    document.getElementById('ph-loading').style.display = 'block';
+    document.getElementById('ph-empty').style.display = 'none';
+    document.getElementById('ph-content').style.display = 'none';
+    fetch(url).then(r=>{ if(!r.ok) throw r; return r.json(); }).then(rows=>{
+      document.getElementById('ph-loading').style.display = 'none';
+      if(!rows || rows.length===0){ document.getElementById('ph-empty').style.display='block'; phModal.show(); return; }
+      const tbody = document.getElementById('ph-tbody'); tbody.innerHTML = '';
+      rows.forEach(r=>{
+        const tr = document.createElement('tr');
+        // Visit #
+        const tdVisit = document.createElement('td'); tdVisit.innerHTML = r.appointment_id || '-'; tr.appendChild(tdVisit);
+        // Visit info
+        const tdInfo = document.createElement('td'); tdInfo.className = 'small'; tdInfo.innerHTML = (r.visit_info||'').replace(/\n/g,'<br>'); tr.appendChild(tdInfo);
+        // Doctor
+        const tdDoc = document.createElement('td'); tdDoc.className = 'small'; tdDoc.textContent = r.doctor_name || 'Unknown'; tr.appendChild(tdDoc);
+        // Prescription
+        const tdPresc = document.createElement('td'); tdPresc.className = 'small'; tdPresc.textContent = r.prescription || ''; tr.appendChild(tdPresc);
+        // Date
+        const tdDate = document.createElement('td'); tdDate.className = 'small'; tdDate.textContent = r.date || ''; tr.appendChild(tdDate);
+        // Actions (Edit)
+        const tdActions = document.createElement('td'); tdActions.className = 'small';
+        const editBtn = document.createElement('button'); editBtn.className = 'btn btn-sm btn-outline-primary ms-1'; editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', ()=>{
+          // populate dhModal fields with this record and open modal for editing
+          document.getElementById('dh-record-id').value = r.id || '';
+          document.getElementById('dh-appointment-id').value = r.appointment_id || '';
+          document.getElementById('dh-patient-id').value = pid || '';
+          document.getElementById('dh-visit').value = r.visit_info || '';
+          document.getElementById('dh-presc').value = r.prescription || '';
+          if(r.date){
+            if(r.date.indexOf('/') !== -1){ const parts = r.date.split('/'); document.getElementById('dh-date').value = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0'); }
+            else document.getElementById('dh-date').value = r.date;
+          } else document.getElementById('dh-date').value = '';
+          dhModal.show();
+        });
+        tdActions.appendChild(editBtn);
+        tr.appendChild(tdActions);
+        tbody.appendChild(tr);
+      });
+      document.getElementById('ph-patient-title').textContent = `Patient #${pid} History`;
+      document.getElementById('ph-content').style.display = 'block';
+      phModal.show();
+    }).catch(()=>{ document.getElementById('ph-loading').style.display = 'none'; document.getElementById('ph-empty').style.display='block'; phModal.show(); });
+  });
+
+})();
+</script>
 {% endblock %}

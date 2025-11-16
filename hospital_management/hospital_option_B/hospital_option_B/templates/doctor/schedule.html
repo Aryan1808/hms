@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}My Schedule — Doctor — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">My Schedule</h5>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('doctor_dashboard') }}">Back</a>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h6 class="small text-muted mb-3">Upcoming & Past Appointments</h6>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-hover align-middle">
+            <thead class="table-light small"><tr><th>Date</th><th>Time</th><th>Patient</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for a in appointments %}
+                <tr>
+                  <td class="small">{{ a['date'] }}</td>
+                  <td class="small">{{ a['time'] }}</td>
+                  <td class="small">{{ a['patient_name'] or ('Patient #' ~ (a['patient_id'] or '-')) }}</td>
+                  <td class="small">
+                    {% if a['status']=='Booked' %}<span class="badge bg-info">Booked</span>
+                    {% elif a['status']=='Completed' %}<span class="badge bg-success">Completed</span>
+                    {% elif a['status']=='Cancelled' %}<span class="badge bg-secondary">Cancelled</span>
+                    {% else %}<span class="badge bg-light text-dark">{{ a['status'] }}</span>{% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="4" class="text-center small text-muted">No appointments found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <h6 class="small text-muted mb-2">Availability (next 7 days, excluding Sundays)</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered">
+            <tbody>
+              {% for day in availability %}
+                <tr>
+                  <td class="fw-bold" style="width:15%">{{ day.date }}</td>
+                  {% for slot in day.slots %}
+                    <td style="text-align:center; width:42.5%">
+                      {% if slot.available %}
+                        <span class="badge bg-success">{{ slot.time }} - {{ slot.end_time }} (Free)</span>
+                      {% else %}
+                        <a href="#" class="btn-booked-slot text-decoration-none" data-appt-id="{{ slot.appt_id }}" data-patient-id="{{ slot.patient_id }}" data-date="{{ day.date }}" data-time="{{ slot.time }}">
+                          <span class="badge bg-danger">{{ slot.time }} - {{ slot.end_time }} — {{ slot.patient_name or ('Patient #' ~ slot.patient_id) }}</span>
+                        </a>
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+  <!-- Modal: Add/Edit History (for schedule page) -->
+  <div class="modal fade" id="scheduleHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title">Patient History</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="schedule-history-form">
+            <input type="hidden" id="sh-record-id">
+            <input type="hidden" id="sh-appointment-id">
+            <input type="hidden" id="sh-patient-id">
+            <input type="hidden" id="sh-doctor-id" value="{{ g.user.id }}">
+            <div class="mb-2">
+              <label class="form-label small">Visit Info</label>
+              <textarea id="sh-visit" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Prescription</label>
+              <textarea id="sh-presc" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Date</label>
+              <input type="date" id="sh-date" class="form-control">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary btn-sm" id="sh-save">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% block scripts %}
+  <script>
+  (() => {
+    const modalEl = document.getElementById('scheduleHistoryModal');
+    const modal = new bootstrap.Modal(modalEl);
+
+    function openForAppointment(apptId, patientId, dateStr, timeStr){
+      document.getElementById('sh-record-id').value = '';
+      document.getElementById('sh-appointment-id').value = apptId;
+      document.getElementById('sh-patient-id').value = patientId || '';
+      document.getElementById('sh-visit').value = '';
+      document.getElementById('sh-presc').value = '';
+      document.getElementById('sh-date').value = new Date().toISOString().slice(0,10);
+      // try to fetch existing history
+      fetch('/api/history/' + apptId).then(r=>{
+        if(!r.ok) throw r; return r.json();
+      }).then(rec=>{
+        document.getElementById('sh-record-id').value = rec.id || '';
+        document.getElementById('sh-visit').value = rec.visit_info || '';
+        document.getElementById('sh-presc').value = rec.prescription || '';
+        if(rec.date){ if(rec.date.indexOf('/') !== -1){ const parts = rec.date.split('/'); document.getElementById('sh-date').value = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0'); } else document.getElementById('sh-date').value = rec.date; }
+        modal.show();
+      }).catch(()=>{
+        // no history exists — only allow creating if appointment datetime has passed
+        try{
+          if(dateStr && timeStr){
+            // dateStr expected dd/mm/yyyy
+            const parts = dateStr.split('/');
+            const y = parseInt(parts[2],10), m = parseInt(parts[1],10)-1, d = parseInt(parts[0],10);
+            const tparts = timeStr.split(':');
+            const hh = parseInt(tparts[0],10), mm = parseInt(tparts[1]||'0',10);
+            const apptDate = new Date(y,m,d,hh,mm);
+            const now = new Date();
+            if(now < apptDate){
+              alert('Cannot add history before the appointment date and time.');
+              return;
+            }
+          }
+        }catch(e){ /* if parse fails, block for safety? allow modal */ }
+        modal.show();
+      });
+    }
+
+    // Bind handlers: disable clicks for future appointments and add tooltip
+    document.querySelectorAll('.btn-booked-slot').forEach(el => {
+      const dateStr = el.dataset.date; // expected DD/MM/YYYY
+      const timeStr = el.dataset.time; // expected HH:MM
+      let isFuture = false;
+      try{
+        if(dateStr){
+          const parts = dateStr.split('/');
+          if(parts.length===3){
+            const y = parseInt(parts[2],10), m = parseInt(parts[1],10)-1, d = parseInt(parts[0],10);
+            const tparts = (timeStr||'00:00').split(':');
+            const hh = parseInt(tparts[0]||'0',10), mm = parseInt(tparts[1]||'0',10);
+            const apptDate = new Date(y,m,d,hh,mm);
+            if(new Date() < apptDate){ isFuture = true; }
+          }
+        }
+      }catch(e){ isFuture = false; }
+
+      if(isFuture){
+        // disable click, add tooltip
+        el.classList.add('future-no-history');
+        el.setAttribute('title', 'History can be added after appointment completion');
+        el.setAttribute('data-bs-toggle', 'tooltip');
+        // initialize Bootstrap tooltip
+        try{ new bootstrap.Tooltip(el); }catch(e){}
+        // visually indicate disabled
+        el.style.cursor = 'not-allowed';
+        el.addEventListener('click', function(e){ e.preventDefault(); /* noop */ });
+      } else {
+        el.addEventListener('click', function(e){
+          e.preventDefault();
+          const ap = this.dataset.apptId;
+          const pid = this.dataset.patientId;
+          openForAppointment(ap, pid, dateStr, timeStr);
+        });
+      }
+    });
+
+    document.getElementById('sh-save').addEventListener('click', ()=>{
+      const payload = {
+        id: document.getElementById('sh-record-id').value || null,
+        appointment_id: document.getElementById('sh-appointment-id').value || null,
+        patient_id: document.getElementById('sh-patient-id').value,
+        doctor_id: document.getElementById('sh-doctor-id').value,
+        visit_info: document.getElementById('sh-visit').value,
+        prescription: document.getElementById('sh-presc').value,
+        date: document.getElementById('sh-date').value || null
+      };
+      fetch('{{ url_for("api_patient_history_add_edit") }}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+        .then(r=>{ if(!r.ok) return r.json().then(j=>{ throw new Error(j.message || 'Error'); }); return r.json(); })
+        .then(j=>{
+          if(j.success){
+            modal.hide();
+            // update the slot badge to keep info (could highlight saved history)
+            try{
+              const apid = payload.appointment_id;
+              const slotEl = document.querySelector(`.btn-booked-slot[data-appt-id="${apid}"]`);
+              if(slotEl){ slotEl.innerHTML = `<span class="badge bg-danger">${slotEl.textContent}</span>`; }
+            }catch(e){}
+          } else alert(j.message || 'Failed');
+        }).catch(e=>alert(e.message || 'Network error'));
+    });
+  })();
+  </script>
+  {% endblock %}
+{% endblock %}
