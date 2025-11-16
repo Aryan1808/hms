@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Patient Dashboard — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="mb-3">Available Doctors</h6>
+        <div class="list-group list-group-flush">
+          {% for d in doctors %}
+            <div class="list-group-item d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-medium">{{ d['name'] }}</div>
+                <div class="small text-muted">{{ d['specialization'] or 'General' }}</div>
+              </div>
+              <div class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('book', doctor_id=d['id']) }}">Book</a>
+              </div>
+            </div>
+          {% else %}
+            <div class="p-3 small text-muted">No doctors available.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="mb-3">My Appointments</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light small">
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Doctor</th>
+                <th>Status</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in appts %}
+                <tr>
+                  <td class="small">{{ a['date'] }}</td>
+                  <td class="small">{{ a['time'] }}</td>
+                  <td class="small">Dr. #{{ a['doctor_id'] }}</td>
+                  <td class="small">
+                    {% if a['status'] == 'Booked' %}
+                      <span class="badge bg-info">Booked</span>
+                    {% elif a['status'] == 'Completed' %}
+                      <span class="badge bg-success">Completed</span>
+                    {% elif a['status'] == 'Cancelled' %}
+                      <span class="badge bg-secondary">Cancelled</span>
+                    {% else %}
+                      <span class="badge bg-light text-dark">{{ a['status'] }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if a['status'] == 'Booked' %}
+                      <form action="{{ url_for('cancel', appt_id=a['id']) }}" method="post" class="d-inline">
+                        <button class="btn btn-sm btn-outline-danger">Cancel</button>
+                      </form>
+                    {% else %}
+                      <span class="small text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="5" class="text-center small text-muted">You have no appointments.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

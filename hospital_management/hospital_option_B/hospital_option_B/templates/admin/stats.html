@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Stats — Admin — Hospital Management{% endblock %}
+
+{% block head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Doctor Specialization Stats</h5>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_dashboard') }}">Back</a>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <canvas id="specChart" height="160"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 mt-3 mt-lg-0">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6 class="small text-muted">Legend</h6>
+        <ul class="list-unstyled small mb-0">
+          {% for label in labels %}
+            <li class="mb-1">{{ label }} <span class="text-muted">({{ values[loop.index0] }})</span></li>
+          {% else %}
+            <li class="text-muted">No data available.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="chart-data" data-labels='{{ labels | tojson | safe }}' data-values='{{ values | tojson | safe }}' style="display:none"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const dataEl = document.getElementById('chart-data');
+    const labels = JSON.parse(dataEl.dataset.labels || '[]');
+    const values = JSON.parse(dataEl.dataset.values || '[]');
+    const ctx = document.getElementById('specChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Doctors by specialization',
+          data: values,
+          backgroundColor: ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc949','#b07aa1','#ff9da7'],
+          borderWidth: 0
+        }]
+      },
+      options: {plugins: {legend: { position: 'bottom' }}, responsive: true, maintainAspectRatio: false}
+    });
+  })();
+</script>
+{% endblock %}

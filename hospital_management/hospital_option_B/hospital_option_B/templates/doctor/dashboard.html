@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Doctor Dashboard — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">My Appointments</h5>
+      <small class="text-muted">Doctor: {{ g.user.username }}</small>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0 align-middle">
+          <thead class="table-light small">
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Patient</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in appts %}
+              <tr>
+                <td class="small">{{ a['date'] }}</td>
+                <td class="small">{{ a['time'] }}</td>
+                <td class="fw-medium small">Patient #{{ a['patient_id'] }}</td>
+                <td class="small">
+                  {% if a['status'] == 'Booked' %}
+                    <span class="badge bg-info">Booked</span>
+                  {% elif a['status'] == 'Completed' %}
+                    <span class="badge bg-success">Completed</span>
+                  {% elif a['status'] == 'Cancelled' %}
+                    <span class="badge bg-secondary">Cancelled</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark">{{ a['status'] }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end small">
+                  {% if a['status'] != 'Completed' %}
+                    <form action="{{ url_for('doctor_complete', appt_id=a['id']) }}" method="post" class="d-inline">
+                      <input type="hidden" name="diagnosis" value="">
+                      <input type="hidden" name="prescription" value="">
+                      <button type="submit" class="btn btn-sm btn-outline-success">Mark Complete</button>
+                    </form>
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="text-center small text-muted">No appointments found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

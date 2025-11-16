@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Home — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 mx-auto">
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h1 class="h4 mb-2">Welcome to Hospital Management</h1>
+        <p class="text-muted mb-3">A lightweight hospital management system for appointments and basic administration. Use the navigation above to login or register.</p>
+
+        <div class="d-flex gap-2">
+          {% if not g.user %}
+            <a class="btn btn-primary" href="{{ url_for('login') }}">Login</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('register') }}">Register</a>
+          {% else %}
+            {% if g.user.role == 'admin' %}
+              <a class="btn btn-primary" href="{{ url_for('admin_dashboard') }}">Go to Admin Dashboard</a>
+            {% elif g.user.role == 'doctor' %}
+              <a class="btn btn-primary" href="{{ url_for('doctor_dashboard') }}">Go to Doctor Dashboard</a>
+            {% else %}
+              <a class="btn btn-primary" href="{{ url_for('patient_dashboard') }}">Go to Patient Dashboard</a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card p-3 shadow-sm">
+          <h2 class="h6 mb-2">Appointments</h2>
+          <p class="small text-muted mb-0">Book and manage patient appointments easily.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-3 shadow-sm">
+          <h2 class="h6 mb-2">Doctors</h2>
+          <p class="small text-muted mb-0">Maintain doctor profiles and specializations.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

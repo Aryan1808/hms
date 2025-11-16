@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Doctors — Admin — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Doctors</h5>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('admin_add_doctor') }}">Add Doctor</a>
+    </div>
+
+    <div id="admin-messages"></div>
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover table-striped align-middle mb-0" id="doctors-table">
+          <thead class="table-light small">
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Name</th>
+              <th scope="col">Username</th>
+              <th scope="col">Specialization</th>
+              <th scope="col">Experience (years)</th>
+              <th scope="col" class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in doctors %}
+              <tr data-id="{{ d['id'] }}" data-name="{{ d['name']|e }}" data-username="{{ d['username']|e }}" data-spec="{{ d['specialization']|e }}" data-exp="{{ d['experience'] or '' }}">
+                <td class="small">{{ d['id'] }}</td>
+                <td class="fw-medium">{{ d['name'] }}</td>
+                <td class="text-muted small">{{ d['username'] }}</td>
+                <td class="small">{{ d['specialization'] or 'General' }}</td>
+                <td class="small">{{ d['experience'] or '' }}</td>
+                <td class="text-end small">
+                  <button type="button" class="btn btn-sm btn-outline-secondary btn-edit" data-bs-toggle="modal" data-bs-target="#editModal">Edit</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal">Delete</button>
+                  <button type="button" class="btn btn-sm btn-outline-dark btn-blacklist">Blacklist</button>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="text-center small text-muted">No doctors found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="server-blacklist" data-blacklist='{{ blacklist|tojson | safe }}' style="display:none"></div>
+
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Edit Doctor</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-form">
+          <input type="hidden" id="edit-id">
+          <div class="mb-3">
+            <label class="form-label small">Full name</label>
+            <input type="text" id="edit-name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Username</label>
+            <input type="text" id="edit-username" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Specialization</label>
+            <input type="text" id="edit-spec" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Experience</label>
+            <input type="text" id="edit-experience" class="form-control" placeholder="e.g. 5 years">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" id="save-edit">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title">Delete Doctor</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small" id="delete-info"></p>
+        <div class="small text-muted">Confirm deletion of this doctor. This action removes the user from the database.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  function getStorage(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch(e){return null} }
+  function setStorage(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+  const table = document.getElementById('doctors-table');
+  const tbody = table.querySelector('tbody');
+  const messages = document.getElementById('admin-messages');
+
+  function showMessage(text, type='info'){
+    messages.innerHTML = `<div class="alert alert-${ type==='info' ? 'secondary' : type } small alert-dismissible fade show" role="alert">${text}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>`;
+  }
+
+  function applyBlacklistFromServer(){
+    const el = document.getElementById('server-blacklist');
+    let blacklist = [];
+    if(el && el.dataset && el.dataset.blacklist){
+      try{ blacklist = JSON.parse(el.dataset.blacklist); } catch(e){ blacklist = []; }
+    }
+    Array.from(tbody.querySelectorAll('tr[data-id]')).forEach(r=>{
+      const username = r.dataset.username;
+      const spec = r.dataset.spec || 'General';
+      const name = r.dataset.name;
+      const expCell = r.querySelector('td:nth-child(5)');
+      const found = blacklist.find(b=>b.username===username && b.name===name && (b.specialization||'General')===spec);
+      if(found){ expCell.textContent = 'Blacklisted'; expCell.className = 'small text-danger'; }
+      else { expCell.textContent = r.dataset.exp || ''; expCell.className = 'small'; }
+    });
+  }
+
+  tbody.addEventListener('click', function(e){
+    const editBtn = e.target.closest('.btn-edit');
+    const delBtn = e.target.closest('.btn-delete');
+    const blBtn = e.target.closest('.btn-blacklist');
+    if(editBtn){
+      const row = editBtn.closest('tr');
+      document.getElementById('edit-id').value = row.dataset.id;
+      document.getElementById('edit-name').value = row.dataset.name;
+      document.getElementById('edit-username').value = row.dataset.username;
+      document.getElementById('edit-spec').value = row.dataset.spec || '';
+      document.getElementById('edit-experience').value = row.dataset.exp || '';
+    }
+    if(delBtn){
+      const row = delBtn.closest('tr');
+      const id = row.dataset.id;
+      const name = row.dataset.name;
+      document.getElementById('delete-info').textContent = `Doctor: ${name} (ID ${id})`;
+    }
+    if(blBtn){
+      const row = blBtn.closest('tr');
+      const entry = { id: row.dataset.id, name: row.dataset.name, username: row.dataset.username, specialization: row.dataset.spec || 'General' };
+      fetch('{{ url_for("api_doctor_blacklist") }}', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(entry)
+      }).then(r=>r.json()).then(resp=>{
+        if(resp.success){
+          showMessage('Doctor blacklisted');
+          // refresh server blacklist in the DOM
+          fetch('{{ url_for("api_doctor_blacklist") }}').then(r=>r.json()).then(j=>{ document.getElementById('server-blacklist').dataset.blacklist = JSON.stringify(j.blacklist); applyBlacklistFromServer(); });
+        } else showMessage(resp.message || 'Failed','danger');
+      }).catch(()=>showMessage('Network error','danger'));
+    }
+  });
+
+  document.getElementById('save-edit').addEventListener('click', function(){
+    const id = document.getElementById('edit-id').value;
+    const name = document.getElementById('edit-name').value.trim();
+    const username = document.getElementById('edit-username').value.trim();
+    const spec = document.getElementById('edit-spec').value.trim() || 'General';
+    const experience = document.getElementById('edit-experience').value.trim() || '';
+    if(!name || !username){ showMessage('Name and username are required.','danger'); return; }
+    fetch('{{ url_for("api_doctor_edit") }}', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:id,name:name,username:username,specialization:spec,experience:experience}) })
+      .then(r=>r.json()).then(resp=>{
+        if(resp.success){
+          const row = tbody.querySelector(`tr[data-id="${id}"]`);
+          if(row){ row.dataset.name = name; row.dataset.username = username; row.dataset.spec = spec; row.dataset.exp = experience; row.querySelector('td:nth-child(2)').textContent = name; row.querySelector('td:nth-child(3)').textContent = username; row.querySelector('td:nth-child(4)').textContent = spec; row.querySelector('td:nth-child(5)').textContent = experience; }
+          showMessage('Doctor updated');
+          const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+          modal.hide();
+        } else showMessage(resp.message || 'Failed','danger');
+      }).catch(()=>showMessage('Network error','danger'));
+  });
+
+  document.getElementById('confirm-delete').addEventListener('click', function(){
+    const info = document.getElementById('delete-info').textContent || '';
+    const m = info.match(/ID (\d+)/);
+    if(!m) return;
+    const id = m[1];
+    fetch('{{ url_for("api_doctor_delete") }}',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:id}) })
+      .then(r=>r.json()).then(resp=>{
+        if(resp.success){ const row = tbody.querySelector(`tr[data-id="${id}"]`); if(row) row.remove(); showMessage('Doctor deleted'); const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal')); modal.hide(); }
+        else showMessage(resp.message || 'Failed','danger');
+      }).catch(()=>showMessage('Network error','danger'));
+  });
+
+  // initialize
+  applyBlacklistFromServer();
+})();
+</script>
+{% endblock %}

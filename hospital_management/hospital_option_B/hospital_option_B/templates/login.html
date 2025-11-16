@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Login — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-6 col-lg-5 mx-auto">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h3 class="card-title mb-3">Sign in</h3>
+        <form action="{{ url_for('login') }}" method="post" class="needs-validation" novalidate>
+          <div class="mb-3">
+            <label for="username" class="form-label small">Username</label>
+            <input type="text" class="form-control" id="username" name="username" required>
+            <div class="invalid-feedback">Please enter your username.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label small">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+            <div class="invalid-feedback">Please enter your password.</div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center">
+            <button type="submit" class="btn btn-primary">Login</button>
+            <a class="small" href="{{ url_for('register') }}">Create an account</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <p class="text-muted small text-center mt-3">For demonstration only. Use sample credentials from the DB.</p>
+  </div>
+</div>
+{% endblock %}
