@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Reschedule Appointment — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-2">Reschedule Appointment with Dr. {{ doc['name'] }}</h5>
+        <p class="small text-muted mb-3">Current: {{ appt['date'] }} {{ appt['time'] }}</p>
+        <form method="post">
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered">
+              <tbody>
+                {% set has_any = false %}
+                {% for day in availability %}
+                  {% if day.slots %}
+                    {% set has_any = true %}
+                    <tr>
+                      <td class="fw-bold" style="width:15%">{{ day.date }}</td>
+                      {% for slot in day.slots %}
+                      <td style="text-align:center">
+                        {% if slot.available %}
+                        <label class="d-block mb-0">
+                          <input type="radio" name="date_time" value="{{ day.date }}|{{ slot.time }}" required>
+                          <span class="badge bg-success">{{ slot.time }}{% if slot.end_time %} - {{ slot.end_time }}{% endif %}</span>
+                        </label>
+                        {% else %}
+                        <span class="badge bg-danger">{{ slot.time }}{% if slot.end_time %} - {{ slot.end_time }}{% endif %}</span>
+                        {% endif %}
+                      </td>
+                      {% endfor %}
+                    </tr>
+                  {% endif %}
+                {% endfor %}
+                {% if not has_any %}
+                  <tr><td colspan="3" class="text-center small text-muted">No slots available in the next 7 days.</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+          <input type="hidden" name="date" id="selDate">
+          <input type="hidden" name="time" id="selTime">
+          <div class="d-flex justify-content-between">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('patient_dashboard') }}">Back</a>
+            <button class="btn btn-primary btn-sm" id="resBtn" disabled>Reschedule</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('input[name="date_time"]').forEach(r => r.addEventListener('change', function(){
+  const [d,t] = this.value.split('|');
+  document.getElementById('selDate').value = d;
+  document.getElementById('selTime').value = t;
+  document.getElementById('resBtn').disabled = false;
+}));
+</script>
+{% endblock %}

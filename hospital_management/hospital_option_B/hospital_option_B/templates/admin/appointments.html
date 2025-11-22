@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Appointments — Admin — Hospital Management{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0">Appointments</h4>
+      <div>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin_dashboard') }}">Back</a>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+          <thead class="table-light small"><tr><th>Date</th><th>Time</th><th>Doctor</th><th>Patient</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for a in appointments %}
+              <tr>
+                <td class="small">{{ a['date'] }}</td>
+                <td class="small">{{ a['time'] }}</td>
+                <td class="small">{{ a['doctor_name'] or ('Doctor #' ~ (a['doctor_id'] or '-')) }}</td>
+                <td class="small">{{ a['patient_name'] or ('Patient #' ~ (a['patient_id'] or '-')) }}</td>
+                <td class="small">
+                  {% if a['status']=='Booked' %}<span class="badge bg-info">Booked</span>
+                  {% elif a['status']=='Completed' %}<span class="badge bg-success">Completed</span>
+                  {% elif a['status']=='Cancelled' %}<span class="badge bg-secondary">Cancelled</span>
+                  {% else %}<span class="badge bg-light text-dark">{{ a['status'] }}</span>{% endif %}
+                </td>
+                <td class="small">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin_doctor_appointments', doctor_id=a['doctor_id']) }}">View Doctor</a>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="6" class="text-center small text-muted">No appointments found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

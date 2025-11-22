@@ -1,4 +1,5 @@
 import sqlite3, os
+from werkzeug.security import generate_password_hash
 BASE = os.path.dirname(__file__)
 DB = os.path.join(BASE, 'hms.db')
 
@@ -59,14 +60,14 @@ def init_db():
         patient_id INTEGER NOT NULL,
         UNIQUE(doctor_id, patient_id)
     )''')
-    # create admin
+    # create admin (store hashed password)
     cur.execute("SELECT * FROM users WHERE username='admin'")
     if not cur.fetchone():
-        cur.execute("INSERT INTO users (name, username, password, role) VALUES (?,?,?,?)", ('Administrator','admin','adminpass','admin'))
-    # sample doctor
+        cur.execute("INSERT INTO users (name, username, password, role) VALUES (?,?,?,?)", ('Administrator','admin', generate_password_hash('adminpass'), 'admin'))
+    # sample doctor (store hashed password)
     cur.execute("SELECT * FROM users WHERE username='dr1'")
     if not cur.fetchone():
-        cur.execute("INSERT INTO users (name, username, password, role, specialization, experience) VALUES (?,?,?,?,?,?)", ('Dr. Alice','dr1','dr1pass','doctor','Cardiology','5'))
+        cur.execute("INSERT INTO users (name, username, password, role, specialization, experience) VALUES (?,?,?,?,?,?)", ('Dr. Alice','dr1', generate_password_hash('dr1pass'), 'doctor','Cardiology','5'))
     conn.commit()
     conn.close()
     print('DB initialized at', DB)

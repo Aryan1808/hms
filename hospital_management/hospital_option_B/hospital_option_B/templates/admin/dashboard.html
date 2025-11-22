@@ -15,33 +15,39 @@
   </div>
 
   <div class="col-lg-4 col-md-6 mb-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h6 class="text-muted">Doctors</h6>
-        <div class="display-6 fw-bold">{{ doctors }}</div>
-        <p class="small text-muted mb-0">Registered medical staff</p>
+    <a href="{{ url_for('admin_doctors') }}" class="text-decoration-none text-reset">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted">Doctors</h6>
+          <div class="display-6 fw-bold">{{ doctors }}</div>
+          <p class="small text-muted mb-0">Registered medical staff</p>
+        </div>
       </div>
-    </div>
+    </a>
   </div>
 
   <div class="col-lg-4 col-md-6 mb-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h6 class="text-muted">Patients</h6>
-        <div class="display-6 fw-bold">{{ patients }}</div>
-        <p class="small text-muted mb-0">Registered patients</p>
+    <a href="{{ url_for('admin_patients') }}" class="text-decoration-none text-reset">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted">Patients</h6>
+          <div class="display-6 fw-bold">{{ patients }}</div>
+          <p class="small text-muted mb-0">Registered patients</p>
+        </div>
       </div>
-    </div>
+    </a>
   </div>
 
   <div class="col-lg-4 col-md-12 mb-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <h6 class="text-muted">Appointments</h6>
-        <div class="display-6 fw-bold">{{ appts }}</div>
-        <p class="small text-muted mb-0">Total appointments recorded</p>
+    <a href="{{ url_for('admin_appointments') }}" class="text-decoration-none text-reset">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted">Appointments</h6>
+          <div class="display-6 fw-bold">{{ appts }}</div>
+          <p class="small text-muted mb-0">Total appointments recorded</p>
+        </div>
       </div>
-    </div>
+    </a>
   </div>
 
   <div class="col-12 mt-2">

@@ -6,7 +6,9 @@
   <div class="col-12">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="mb-0">My Schedule</h5>
-      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('doctor_dashboard') }}">Back</a>
+      <div>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('doctor_dashboard') }}">Back</a>
+      </div>
     </div>
 
     <div class="card shadow-sm mb-3">
@@ -39,22 +41,29 @@
         <div class="table-responsive">
           <table class="table table-sm table-bordered">
             <tbody>
+              {% set has_any = false %}
               {% for day in availability %}
-                <tr>
-                  <td class="fw-bold" style="width:15%">{{ day.date }}</td>
-                  {% for slot in day.slots %}
-                    <td style="text-align:center; width:42.5%">
-                      {% if slot.available %}
-                        <span class="badge bg-success">{{ slot.time }} - {{ slot.end_time }} (Free)</span>
-                      {% else %}
-                        <a href="#" class="btn-booked-slot text-decoration-none" data-appt-id="{{ slot.appt_id }}" data-patient-id="{{ slot.patient_id }}" data-date="{{ day.date }}" data-time="{{ slot.time }}">
-                          <span class="badge bg-danger">{{ slot.time }} - {{ slot.end_time }} — {{ slot.patient_name or ('Patient #' ~ slot.patient_id) }}</span>
-                        </a>
-                      {% endif %}
-                    </td>
-                  {% endfor %}
-                </tr>
+                {% if day.slots %}
+                  {% set has_any = true %}
+                  <tr>
+                    <td class="fw-bold" style="width:15%">{{ day.date }}</td>
+                    {% for slot in day.slots %}
+                      <td style="text-align:center; width:42.5%">
+                        {% if slot.available %}
+                          <span class="badge bg-success">{{ slot.time }}{% if slot.end_time %} - {{ slot.end_time }}{% endif %} (Free)</span>
+                        {% else %}
+                          <a href="#" class="btn-booked-slot text-decoration-none" data-appt-id="{{ slot.appt_id }}" data-patient-id="{{ slot.patient_id }}" data-date="{{ day.date }}" data-time="{{ slot.time }}">
+                            <span class="badge bg-danger">{{ slot.time }}{% if slot.end_time %} - {{ slot.end_time }}{% endif %} — {{ slot.patient_name or ('Patient #' ~ slot.patient_id) }}</span>
+                          </a>
+                        {% endif %}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endif %}
               {% endfor %}
+              {% if not has_any %}
+                <tr><td colspan="3" class="text-center small text-muted">No slots available for the next 7 days.</td></tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
@@ -98,6 +107,8 @@
       </div>
     </div>
   </div>
+
+        <!-- Doctor-managed availability UI removed; availability is derived from booked slots -->
 
   {% block scripts %}
   <script>
@@ -204,6 +215,8 @@
           } else alert(j.message || 'Failed');
         }).catch(e=>alert(e.message || 'Network error'));
     });
+
+    // Doctor-managed availability UI removed; availability derived from booked slots only
   })();
   </script>
   {% endblock %}
